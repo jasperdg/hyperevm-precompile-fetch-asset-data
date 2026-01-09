@@ -1,81 +1,69 @@
-# Hyperliquid API Scripts
+# HIP-3 Asset Index & Oracle Price Query
 
-Collection of scripts to interact with Hyperliquid's API and HyperEVM System Oracle.
+Query HyperEVM System Oracle prices for HIP-3 perpetual assets.
 
-## Scripts
+## Quick Start
 
-### 1. get-dex.js
-Helper module that queries the Hyperliquid API to find a dex by name and returns its index.
-
-**Usage (as module):**
-```javascript
-import getDexIndex from './get-dex.js';
-const dexIndex = await getDexIndex('str'); // Returns 104
-```
-
-### 2. get-universe-index.js
-Helper module that queries the Hyperliquid API to find an asset within a dex and returns its universe index.
-
-**Usage (as module):**
-```javascript
-import getUniverseAssetIndex from './get-universe-index.js';
-const universeIndex = await getUniverseAssetIndex('str', 'str:GOLD'); // Returns 0
-```
-
-### 3. get-hip3-asset-index.js
-Main script that calculates the asset index and queries the HyperEVM System Oracle precompile for oracle prices.
-
-**Usage:**
 ```bash
+# Install dependencies
+npm install
+
+# Run the script
 node get-hip3-asset-index.js <dexName> <assetName>
-```
 
-**Example:**
-```bash
+# Example
 node get-hip3-asset-index.js str str:GOLD
 ```
 
-**What it does:**
-1. Queries Hyperliquid API to get the dex index for the specified dex name
-2. Queries Hyperliquid API to get the universe index for the specified asset within that dex
-3. Calculates the asset index using: `assetIndex = dexIndex * 10000 + universeIndex`
-4. Encodes the asset index as a 32-byte big-endian hex string
-5. Calls the System Oracle precompile at `0x0000000000000000000000000000000000000807`
-6. Returns the oracle price data
+## Environment Variables
 
-## How Asset Index Calculation Works
+Create a `.env` file with:
 
-The asset index combines the dex index and universe index:
+```bash
+ALCHEMY_API_KEY=your_alchemy_api_key
+HYPERLIQUID_ENDPOINT=https://api.hyperliquid-testnet.xyz/info
+```
+
+| Variable | Description |
+|----------|-------------|
+| `ALCHEMY_API_KEY` | Alchemy API key for HyperEVM RPC access |
+| `HYPERLIQUID_ENDPOINT` | Hyperliquid API endpoint (testnet or mainnet) |
+
+## Project Structure
 
 ```
-assetIndex = dexIndex * 10000 + universeIndex
+├── get-hip3-asset-index.js   # Main script - calculates asset index & queries oracle
+├── get-dex.js                # Helper - finds dex index by name
+├── get-universe-index.js     # Helper - finds universe index by asset name
+├── package.json
+└── README.md
+```
+
+## How It Works
+
+### 1. Asset Index Calculation
+
+```
+assetIndex = dexIndex × 10000 + universeIndex
 ```
 
 **Example: str:GOLD**
-- dexIndex: 104 (str dex)
-- universeIndex: 0 (first asset in str dex)
-- assetIndex: 104 * 10000 + 0 = 1040000
+- dexIndex: `104` (str dex)
+- universeIndex: `0` (first asset)
+- assetIndex: `104 × 10000 + 0 = 1040000`
 
-## HyperEVM System Oracle Precompile
+### 2. Encoding
 
-The System Oracle precompile is located at:
-```
-0x0000000000000000000000000000000000000807
-```
+The asset index is encoded as a 32-byte big-endian hex value:
 
-### Encoding
-
-The asset index is encoded as a 32-byte big-endian value:
-- First 28 bytes: zeros (padding)
-- Last 4 bytes: asset index in big-endian format
-
-**Example for asset index 1040000 (0xFDE80):**
 ```
 0x00000000000000000000000000000000000000000000000000000000000fde80
-                                                              └─ 0xFDE80 = 1040000
+                                                              └─ 1040000
 ```
 
-### RPC Call Format
+### 3. Oracle Query
+
+Sends an `eth_call` to the System Oracle precompile:
 
 ```json
 {
@@ -92,64 +80,30 @@ The asset index is encoded as a 32-byte big-endian value:
 }
 ```
 
-### Response Format
-
-The precompile returns a hex-encoded value representing the oracle price.
-
-## Known Limitations
-
-### PrecompileError on Testnet/Mainnet
-
-Currently, many assets return a `PrecompileError` when queried. This indicates:
-
-1. **Asset Not Registered**: The asset hasn't been registered in the System Oracle yet
-2. **No Oracle Updates**: The oracle hasn't received price updates for this asset
-3. **Testnet Limitation**: The testnet System Oracle may not be fully populated
-
-**Workaround:** For custom perp dexes, you may need to query the dex's oracle updater contract directly or use the Hyperliquid API instead.
-
-## Setup
-
-1. **Install dependencies:**
-```bash
-npm install
-```
-
-The script requires:
-- `dotenv` - for environment variable management
-- `ethers` (optional) - only needed if using ABI decoding features
-
-2. **Create a `.env` file:**
-```bash
-ALCHEMY_API_KEY=your_alchemy_api_key_here
-```
-
-Get an Alchemy API key from: https://www.alchemy.com/
-
 ## Example Output
 
 ```bash
 $ node get-hip3-asset-index.js str str:GOLD
 
-Found "str" at index: 104
+Found str at index: 104
 Dex index for str: 104
 Found str:GOLD at index: 0
 Universe index for str:GOLD: 0
-Asset index for str:str:GOLD is 1040000
+Asset index: 1040000
 
 === Querying System Oracle Precompile ===
 Asset Index: 1040000
 Encoded Data: 0x00000000000000000000000000000000000000000000000000000000000fde80
-RPC Endpoint: https://hyperliquid-testnet.g.alchemy.com/v2/...
-
-Oracle Price (hex): 0x...
-Oracle Price (decimal): ...
+RPC Endpoint: https://hyperliquid-testnet.g.alchemy.com/v2/****
+Request Body: {"id":1,"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x0000000000000000000000000000000000000807","input":"0x00000000000000000000000000000000000000000000000000000000000fde80"},"latest"]}
+Oracle Price (hex): 0x000000000000000000000000000000000000000000000000000000000006d364
+Oracle Price (decimal): 447332
 
 === Final Result ===
 {
-  "assetIndex": 1040000,
-  "oraclePxHex": "0x...",
-  "oraclePxDecimal": "..."
+  assetIndex: 1040000,
+  oraclePxHex: '0x000000000000000000000000000000000000000000000000000000000006d364',
+  oraclePxDecimal: '447332'
 }
 ```
 
@@ -157,27 +111,22 @@ Oracle Price (decimal): ...
 
 ### PrecompileError
 
-If you receive `EVM error: PrecompileError`:
+If you receive `EVM error: PrecompileError`, the asset may not be registered in the System Oracle yet.
 
-1. **Check if the asset exists**: Verify the dex and asset names are correct
-2. **Try a different asset**: Not all assets may be registered in the System Oracle
-3. **Use mainnet instead of testnet**: Some assets may only be available on mainnet
-4. **Alternative approach**: Query the oracle updater contract directly
+**Solutions:**
+1. Verify the dex and asset names are correct
+2. Try a different asset that's known to be registered
+3. Query the dex's oracle updater contract directly
 
-For str dex, the oracle updater is at: `0xae8f7cbfae2061834f4bd716ed44f7654c6b2795`
-
-### Invalid API Response
+### API Errors
 
 If the Hyperliquid API returns errors:
-- Check your internet connection
-- Verify you're using the correct API endpoint
-- Try the mainnet API: `https://api.hyperliquid.xyz/info`
+- Check your `HYPERLIQUID_ENDPOINT` is correct
+- For mainnet: `https://api.hyperliquid.xyz/info`
+- For testnet: `https://api.hyperliquid-testnet.xyz/info`
 
 ## Resources
 
-- **Hyperliquid Testnet API**: https://api.hyperliquid-testnet.xyz/info
-- **Hyperliquid Mainnet API**: https://api.hyperliquid.xyz/info
-- **HyperEVM Testnet RPC**: Via Alchemy
-- **HyperEVM Mainnet RPC**: https://rpc.hyperliquid.xyz/evm
-- **HyperEVM Oracle Contracts**: https://github.com/hyperlendx/hyperevm-oracle
-- **Hyperliquid Docs**: https://hyperliquid.gitbook.io/
+- [Hyperliquid Docs](https://hyperliquid.gitbook.io/)
+- [HyperEVM Oracle Contracts](https://github.com/hyperlendx/hyperevm-oracle)
+- [Alchemy](https://www.alchemy.com/) - Get an API key for HyperEVM RPC
