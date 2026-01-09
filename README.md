@@ -12,7 +12,7 @@ npm install
 node get-hip3-asset-index.js <dexName> <assetName>
 
 # Example
-node get-hip3-asset-index.js str str:GOLD
+node get-hip3-asset-index.js xyz xyz:NVDA
 ```
 
 ## Environment Variables
