@@ -22,8 +22,19 @@ const TYPE_NAMES = { oracle: 'Oracle', markpx: 'Mark' };
 // CLI
 // ============================================================================
 
+function normalizeBlock(block) {
+  if (!block || ['latest', 'pending', 'earliest'].includes(block)) {
+    return block || 'latest';
+  }
+  if (block.startsWith('0x')) {
+    return block;
+  }
+  // Convert decimal string to hex
+  return '0x' + BigInt(block).toString(16);
+}
+
 function parseArgs() {
-  const [, , dexName, assetName, type, block = 'latest'] = process.argv;
+  const [, , dexName, assetName, type, rawBlock] = process.argv;
 
   if (!dexName || !assetName || !type) {
     console.error('Usage: node index.js <dexName> <assetName> <oracle|markpx> [block]');
@@ -35,7 +46,7 @@ function parseArgs() {
     process.exit(1);
   }
 
-  return { dexName, assetName, type, block };
+  return { dexName, assetName, type, block: normalizeBlock(rawBlock) };
 }
 
 async function main() {
