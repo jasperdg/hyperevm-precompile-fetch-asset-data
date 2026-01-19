@@ -9,12 +9,12 @@ Query HyperEVM System Oracle and Mark prices for HIP-3 perpetual assets.
 npm install
 
 # Run the script
-node get-hip3-asset-index.js <dexName> <assetName> <oracle|markpx> [block]
+node index.js <dexName> <assetName> <oracle|markpx> [block]
 
 # Examples
-node get-hip3-asset-index.js xyz xyz:NVDA oracle          # Oracle price at latest block
-node get-hip3-asset-index.js xyz xyz:NVDA markpx          # Mark price at latest block
-node get-hip3-asset-index.js xyz xyz:NVDA oracle 0x123    # Oracle price at specific block
+node index.js xyz xyz:NVDA oracle          # Oracle price at latest block
+node index.js xyz xyz:NVDA markpx          # Mark price at latest block
+node index.js xyz xyz:NVDA oracle 0x123    # Oracle price at specific block
 ```
 
 ## Environment Variables
@@ -34,9 +34,11 @@ HYPERLIQUID_ENDPOINT=https://api.hyperliquid-testnet.xyz/info
 ## Project Structure
 
 ```
-├── get-hip3-asset-index.js   # Main script - calculates asset index & queries oracle/mark price
-├── get-dex.js                # Helper - finds dex index by name
-├── get-universe-index.js     # Helper - finds universe index by asset name
+├── index.js                  # CLI entry point
+├── src/
+│   ├── encoding.js           # Asset index encoding utilities
+│   ├── hyperliquid.js        # Hyperliquid API client
+│   └── hyperevm.js           # HyperEVM RPC client for precompiles
 ├── package.json
 └── README.md
 ```
@@ -90,11 +92,9 @@ Sends an `eth_call` to the appropriate precompile:
 ## Example Output
 
 ```bash
-$ node get-hip3-asset-index.js str str:GOLD oracle
+$ node index.js str str:GOLD oracle
 
-Found str at index: 104
 Dex index for str: 104
-Found str:GOLD at index: 0
 Universe index for str:GOLD: 0
 Asset index: 1040000
 
@@ -103,12 +103,11 @@ Precompile: 0x0000000000000000000000000000000000000807
 Asset Index: 1040000
 Block: latest
 Encoded Data: 0x00000000000000000000000000000000000000000000000000000000000fde80
-RPC Endpoint: https://hyperliquid-testnet.g.alchemy.com/v2/****
-Request Body: {"id":1,"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x0000000000000000000000000000000000000807","input":"0x00000000000000000000000000000000000000000000000000000000000fde80"},"latest"]}
+Request: {"id":1,"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x0000000000000000000000000000000000000807","input":"0x00000000000000000000000000000000000000000000000000000000000fde80"},"latest"]}
 Oracle Price (hex): 0x000000000000000000000000000000000000000000000000000000000006d364
 Oracle Price (decimal): 447332
 
-=== Final Result ===
+=== Result ===
 {
   assetIndex: 1040000,
   pxHex: '0x000000000000000000000000000000000000000000000000000000000006d364',
