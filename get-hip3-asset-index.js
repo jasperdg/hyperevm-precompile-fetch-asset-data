@@ -6,7 +6,10 @@ dotenv.config();
 
 // Constants
 const RPC_ENDPOINT = `https://hyperliquid-testnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
-const ORACLE_PRECOMPILE = '0x0000000000000000000000000000000000000807';
+const PRECOMPILES = {
+  oracle: '0x0000000000000000000000000000000000000807',
+  markpx: '0x0000000000000000000000000000000000000806'
+};
 
 /**
  * Calculates asset index from dex and universe indices
@@ -41,28 +44,31 @@ async function getAssetIndex(dexName, assetName) {
 }
 
 /**
- * Creates RPC body for eth_call to System Oracle precompile
+ * Creates RPC body for eth_call to precompile
  */
-function buildRpcRequest(assetIndex) {
+function buildRpcRequest(assetIndex, precompileType, block = 'latest') {
   return {
     id: 1,
     jsonrpc: '2.0',
     method: 'eth_call',
     params: [
-      { to: ORACLE_PRECOMPILE, input: encodeAssetIndex(assetIndex) },
-      'latest'
+      { to: PRECOMPILES[precompileType], input: encodeAssetIndex(assetIndex) },
+      block
     ]
   };
 }
 
 /**
- * Queries the System Oracle precompile for oracle price
+ * Queries a precompile for price data
  */
-async function getOraclePx(assetIndex) {
-  const rpcBody = buildRpcRequest(assetIndex);
+async function getPx(assetIndex, precompileType, block = 'latest') {
+  const rpcBody = buildRpcRequest(assetIndex, precompileType, block);
+  const typeName = precompileType === 'oracle' ? 'Oracle' : 'Mark';
 
-  console.log('\n=== Querying System Oracle Precompile ===');
+  console.log(`\n=== Querying ${typeName} Precompile ===`);
+  console.log(`Precompile: ${PRECOMPILES[precompileType]}`);
   console.log(`Asset Index: ${assetIndex}`);
+  console.log(`Block: ${block}`);
   console.log(`Encoded Data: ${rpcBody.params[0].input}`);
   console.log(`RPC Endpoint: ${RPC_ENDPOINT}`);
   console.log(`Request Body: ${JSON.stringify(rpcBody)}`);
@@ -83,29 +89,35 @@ async function getOraclePx(assetIndex) {
     throw new Error(`RPC error: ${result.error.message}`);
   }
 
-  const oraclePxHex = result.result;
-  const oraclePxDecimal = BigInt(oraclePxHex).toString();
+  const pxHex = result.result;
+  const pxDecimal = BigInt(pxHex).toString();
 
-  console.log(`Oracle Price (hex): ${oraclePxHex}`);
-  console.log(`Oracle Price (decimal): ${oraclePxDecimal}`);
+  console.log(`${typeName} Price (hex): ${pxHex}`);
+  console.log(`${typeName} Price (decimal): ${pxDecimal}`);
 
-  return { assetIndex, oraclePxHex, oraclePxDecimal };
+  return { assetIndex, pxHex, pxDecimal, type: precompileType, block };
 }
 
 // Main execution
 (async () => {
-  if (process.argv.length < 4) {
-    console.error('Usage: node get-hip3-asset-index.js <dexName> <assetName>');
+  if (process.argv.length < 5) {
+    console.error('Usage: node get-hip3-asset-index.js <dexName> <assetName> <oracle|markpx> [block]');
     process.exit(1);
   }
 
   try {
-    const [, , dexName, assetName] = process.argv;
+    const [, , dexName, assetName, precompileType, block = 'latest'] = process.argv;
+
+    if (!PRECOMPILES[precompileType]) {
+      console.error('Invalid precompile type. Use "oracle" or "markpx".');
+      process.exit(1);
+    }
+
     const assetIndex = await getAssetIndex(dexName, assetName);
-    const oracleData = await getOraclePx(assetIndex);
+    const priceData = await getPx(assetIndex, precompileType, block);
 
     console.log('\n=== Final Result ===');
-    console.log(oracleData);
+    console.log(priceData);
   } catch (error) {
     console.error('Failed:', error.message);
     process.exit(1);

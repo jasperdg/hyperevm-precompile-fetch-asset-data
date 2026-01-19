@@ -1,6 +1,6 @@
 # HIP-3 Asset Index & Oracle Price Query
 
-Query HyperEVM System Oracle prices for HIP-3 perpetual assets.
+Query HyperEVM System Oracle and Mark prices for HIP-3 perpetual assets.
 
 ## Quick Start
 
@@ -9,10 +9,12 @@ Query HyperEVM System Oracle prices for HIP-3 perpetual assets.
 npm install
 
 # Run the script
-node get-hip3-asset-index.js <dexName> <assetName>
+node get-hip3-asset-index.js <dexName> <assetName> <oracle|markpx> [block]
 
-# Example
-node get-hip3-asset-index.js xyz xyz:NVDA
+# Examples
+node get-hip3-asset-index.js xyz xyz:NVDA oracle          # Oracle price at latest block
+node get-hip3-asset-index.js xyz xyz:NVDA markpx          # Mark price at latest block
+node get-hip3-asset-index.js xyz xyz:NVDA oracle 0x123    # Oracle price at specific block
 ```
 
 ## Environment Variables
@@ -32,7 +34,7 @@ HYPERLIQUID_ENDPOINT=https://api.hyperliquid-testnet.xyz/info
 ## Project Structure
 
 ```
-├── get-hip3-asset-index.js   # Main script - calculates asset index & queries oracle
+├── get-hip3-asset-index.js   # Main script - calculates asset index & queries oracle/mark price
 ├── get-dex.js                # Helper - finds dex index by name
 ├── get-universe-index.js     # Helper - finds universe index by asset name
 ├── package.json
@@ -61,9 +63,14 @@ The asset index is encoded as a 32-byte big-endian hex value:
                                                               └─ 1040000
 ```
 
-### 3. Oracle Query
+### 3. Price Query
 
-Sends an `eth_call` to the System Oracle precompile:
+Sends an `eth_call` to the appropriate precompile:
+
+| Type | Precompile Address |
+|------|-------------------|
+| `oracle` | `0x0000000000000000000000000000000000000807` |
+| `markpx` | `0x0000000000000000000000000000000000000806` |
 
 ```json
 {
@@ -83,7 +90,7 @@ Sends an `eth_call` to the System Oracle precompile:
 ## Example Output
 
 ```bash
-$ node get-hip3-asset-index.js str str:GOLD
+$ node get-hip3-asset-index.js str str:GOLD oracle
 
 Found str at index: 104
 Dex index for str: 104
@@ -91,8 +98,10 @@ Found str:GOLD at index: 0
 Universe index for str:GOLD: 0
 Asset index: 1040000
 
-=== Querying System Oracle Precompile ===
+=== Querying Oracle Precompile ===
+Precompile: 0x0000000000000000000000000000000000000807
 Asset Index: 1040000
+Block: latest
 Encoded Data: 0x00000000000000000000000000000000000000000000000000000000000fde80
 RPC Endpoint: https://hyperliquid-testnet.g.alchemy.com/v2/****
 Request Body: {"id":1,"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x0000000000000000000000000000000000000807","input":"0x00000000000000000000000000000000000000000000000000000000000fde80"},"latest"]}
@@ -102,8 +111,10 @@ Oracle Price (decimal): 447332
 === Final Result ===
 {
   assetIndex: 1040000,
-  oraclePxHex: '0x000000000000000000000000000000000000000000000000000000000006d364',
-  oraclePxDecimal: '447332'
+  pxHex: '0x000000000000000000000000000000000000000000000000000000000006d364',
+  pxDecimal: '447332',
+  type: 'oracle',
+  block: 'latest'
 }
 ```
 
